@@ -105,7 +105,7 @@ Heatmap(tpm_norownames, name = "Expression", cluster_rows = FALSE)
 
 ## Opening a Github account
 ### https://github.com/JoshuaHazan/DataScienceCourse22
-
+#### I was unable to install Git on my work PC in time for this week, as I cannot install new apps without a password. I will try to get it installed in time for next week.
 
 
 
