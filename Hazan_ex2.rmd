@@ -1,0 +1,111 @@
+---
+title: "Hazan_ex2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Exercise 2
+
+```{r loading the datasets}
+library(tidyverse)
+library(BiocGenerics)
+library(DESeq2)
+library(pheatmap)
+library(compGenomRData)
+counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv",
+package = "compGenomRData")
+coldata_file <- system.file("extdata/rna-seq/SRP029880.colData.tsv",
+package = "compGenomRData")
+coldata = read.table(coldata_file, header = TRUE, sep = "\t")
+counts = read.table(counts_file, header = TRUE, sep = "\t")
+```
+
+## Question 1
+```{r}
+counts_mat <- as.matrix(counts)
+geneLengths_mat <- subset(counts_mat, select = c(width))
+geneLengths_vector <- as.vector(geneLengths_mat)
+
+rpkm <- apply(X = subset(counts_mat, select = c(-width)),
+              MARGIN = 2,
+              FUN = function(x) {
+                (x*10^9) / (geneLengths_vector * sum(as.numeric(x)))
+              })
+
+colSums(rpkm)
+
+tpm <- apply(rpkm, 2, function(x) {
+  (x / sum(as.numeric(x)) * 10^6)
+})
+
+colSums(tpm)
+```
+
+## Question 2
+```{r}
+Var_tpm <- apply(tpm, 1, var)
+Top_500 <- names(Var_tpm[order(Var_tpm, decreasing = TRUE)][1:500])
+pheatmap(tpm[Top_500,], scale = "row", show_rownames = FALSE)
+
+#Compared to top 100:
+Top_100 <- names(Var_tpm[order(Var_tpm, decreasing = TRUE)][1:100])
+pheatmap(tpm[Top_100,], scale = "row", show_rownames = FALSE)
+#The clustering has changed within the control and case groups
+```
+
+## Question 3
+```{r}
+pheatmap(tpm[Top_500,], scale = "none", show_rownames = FALSE)
+#With no defined scale, the first (and lowest) genes are given too much space
+
+pheatmap(tpm[Top_500,], scale = "column", show_rownames = FALSE)
+#Because there are only 10 columns but 500 rows, this scale doesn't properly show us the rows
+```
+
+## Question 4
+```{r}
+library(stats)
+corr_matrix <- cor(tpm)
+library(corrplot)
+corrplot(corr_matrix, method = "ellipse", type = "upper", 
+         order = "hclust", hclust.method = "average")
+```
+
+## Question 5
+```{r}
+tpm_order <- tpm[order(rowSums(tpm), decreasing = TRUE), ]
+tpm_order <- tpm_order[c(1:100),]
+top_100_names <- rownames(tpm_order)
+tpm_100 <- subset(tpm, rownames(tpm) %in% top_100_names)
+pheatmap(tpm_100, scale = "row", show_rownames = FALSE)
+
+Pca_tpm <- prcomp(tpm_100)
+library("ggfortify")
+autoplot(Pca_tpm, data = coldata, colour = "group") + theme_classic()
+```
+
+## Question 6
+```{r}
+coldata$batch <- c("Batch1", "Batch2", "Batch3", "Batch4", "Batch5","Batch1", "Batch2", "Batch3", "Batch4", "Batch5")
+
+autoplot(Pca_tpm, data = coldata, colour = "batch") + theme_classic()
+```
+
+## Question 7
+```{r}
+library("ComplexHeatmap")
+tpm_norownames <- tpm
+row.names(tpm_norownames) <- NULL
+Heatmap(tpm_norownames, name = "Expression", cluster_rows = FALSE)
+# Because there are so many values, clustering by rows takes too long
+```
+
+## Opening a Github account
+### https://github.com/JoshuaHazan/DataScienceCourse22
+
+
+
+
