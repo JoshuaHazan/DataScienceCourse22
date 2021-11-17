@@ -9,6 +9,8 @@ library(tidyverse)
 library(DESeq2)
 library(EnhancedVolcano)
 library(compGenomRData)
+library(edgeR)
+library(compcodeR)
 ```
 
 ## Required files
@@ -21,7 +23,6 @@ package = "compGenomRData")
 counts <- read.table(counts_file, sep = "\t", header = TRUE)
 counts <- as.matrix(subset(counts, select = c(-width)))
 coldata <- read.table(coldata_file, sep = "\t", header = TRUE)
-coldata <- as.matrix(coldata)
 
 counts.deseq <- DESeqDataSetFromMatrix(countData = counts,
                                        colData = coldata,
@@ -64,7 +65,7 @@ results.lfc1 <- DESeq2::results(counts.deseq, lfcThreshold = 1, pAdjustMethod = 
 results.lfc1 <- as.data.frame(results.lfc1)
 # The default is 0, which indicates a fold change of 1. 
 #Changing the threshold to 1 (i.e. fold change of 2) makes the cutoff for significance
-#much more strict, and fewer hits will be obtained, as shown in the below plot
+#much more strict, and fewer hits were obtained, as shown in the below plot
 
 ggplot() + theme_classic() +
   geom_point(data =results.lfc1, aes(x = log2FoldChange, y = -log10(padj)),
@@ -79,8 +80,49 @@ ggplot() + theme_classic() +
                                                y = "-log10(adjusted p-value)")
 ```
 
+## Question 4
+```{r}
+# Independent filtering is filtering with custom cutoffs to ensure data with low reads/low reliability is not included by accident. This can vary depending on the data. 
+```
+
 ## Question 5
 ```{r}
+counts.edgeR <- counts
+edgeR.list <- DGEList(counts = counts.edgeR, group = coldata$group)
+filter.edgeR <- filterByExpr(edgeR.list)
+edgeR.list <- edgeR.list[filter.edgeR,,keep.lib.sizes=FALSE]
+edgeR.list <- calcNormFactors(edgeR.list)
+design <- model.matrix(~coldata$group)
+edgeR.list <- estimateDisp(edgeR.list,design)
+edgeR.list <- exactTest(edgeR.list)
+edgeR.list.df <- as.data.frame(edgeR.list)
 
+#Volcano plot showing the difference. DESeq2 had ~1000 hits more than edgeR
+ggplot() + theme_classic() +
+  geom_point(data =edgeR.list.df, aes(x = logFC, y = -log10(PValue)),
+             col = "grey80", size = 1) + 
+  geom_point(data = subset(edgeR.list.df, logFC > 1 & PValue < 0.05),
+             col = "red2", size = 1, 
+             aes(x = logFC, y = -log10(PValue))) +
+  geom_point(data = subset(edgeR.list.df, logFC < (-1) & PValue < 0.05),
+             col = "steelblue2", size = 1, 
+             aes(x = logFC, y = -log10(PValue))) +
+  theme(legend.title = element_blank()) + labs(x = "log2(fold change) case vs. control",
+                                               y = "-log10(adjusted p-value)")
 ```
+
+## Question 6
+```{r}
+#I did not have time to try this question
+```
+
+
+
+
+
+
+
+
+
+
 
