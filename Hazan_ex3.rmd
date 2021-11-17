@@ -1,0 +1,86 @@
+---
+title: "Hazan_ex3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(DESeq2)
+library(EnhancedVolcano)
+library(compGenomRData)
+```
+
+## Required files
+```{r cars}
+counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv",
+package = "compGenomRData")
+coldata_file <- system.file("extdata/rna-seq/SRP029880.colData.tsv",
+package = "compGenomRData")
+
+counts <- read.table(counts_file, sep = "\t", header = TRUE)
+counts <- as.matrix(subset(counts, select = c(-width)))
+coldata <- read.table(coldata_file, sep = "\t", header = TRUE)
+coldata <- as.matrix(coldata)
+
+counts.deseq <- DESeqDataSetFromMatrix(countData = counts,
+                                       colData = coldata,
+                                       design = ~ group)
+counts.deseq <- counts.deseq[ rowSums(DESeq2::counts(counts.deseq)) >= 10, ]
+counts.deseq <- DESeq(counts.deseq)
+DE.results <- results(counts.deseq, contrast = c("group", 'CASE', 'CTRL'))
+DE.results <- DE.results[order(DE.results$pvalue),]
+DE.results.DF <- as.data.frame(DE.results)
+```
+
+## Question 1
+```{r}
+EnhancedVolcano(DE.results,
+                lab = NA,x = 'log2FoldChange',y = 'pvalue',FCcutoff=1)
+
+ggplot() + theme_classic() +
+  geom_point(data = DE.results.DF, aes(x = log2FoldChange, y = -log10(padj)),
+             col = "grey80", size = 1) + 
+  geom_point(data = subset(DE.results.DF, log2FoldChange > 1 & padj < 0.05),
+             col = "red2", size = 1, 
+             aes(x = log2FoldChange, y = -log10(padj))) +
+  geom_point(data = subset(DE.results.DF, log2FoldChange < (-1) & padj < 0.05),
+             col = "steelblue2", size = 1, 
+             aes(x = log2FoldChange, y = -log10(padj))) +
+  theme(legend.title = element_blank()) + labs(x = "log2(fold change) case vs. control",
+                                               y = "-log10(adjusted p-value)")
+```
+
+## Question 2
+```{r}
+plotDispEsts(counts.deseq, 
+             genecol = "black", fitcol = "orange", finalcol = "purple",
+             legend = TRUE,log = "xy",cex = 0.45)
+```
+
+## Question 3
+```{r}
+results.lfc1 <- DESeq2::results(counts.deseq, lfcThreshold = 1, pAdjustMethod = "BH")
+results.lfc1 <- as.data.frame(results.lfc1)
+# The default is 0, which indicates a fold change of 1. 
+#Changing the threshold to 1 (i.e. fold change of 2) makes the cutoff for significance
+#much more strict, and fewer hits will be obtained, as shown in the below plot
+
+ggplot() + theme_classic() +
+  geom_point(data =results.lfc1, aes(x = log2FoldChange, y = -log10(padj)),
+             col = "grey80", size = 1) + 
+  geom_point(data = subset(results.lfc1, log2FoldChange > 1 & padj < 0.05),
+             col = "red2", size = 1, 
+             aes(x = log2FoldChange, y = -log10(padj))) +
+  geom_point(data = subset(results.lfc1, log2FoldChange < (-1) & padj < 0.05),
+             col = "steelblue2", size = 1, 
+             aes(x = log2FoldChange, y = -log10(padj))) +
+  theme(legend.title = element_blank()) + labs(x = "log2(fold change) case vs. control",
+                                               y = "-log10(adjusted p-value)")
+```
+
+## Question 5
+```{r}
+
+```
+

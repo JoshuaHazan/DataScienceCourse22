@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r loading the datasets}
 library(tidyverse)
+library(usethis)
 library(BiocGenerics)
 library(DESeq2)
 library(pheatmap)
@@ -105,7 +106,8 @@ Heatmap(tpm_norownames, name = "Expression", cluster_rows = FALSE)
 
 ## Opening a Github account
 ### https://github.com/JoshuaHazan/DataScienceCourse22
-#### I was unable to install Git on my work PC in time for this week, as I cannot install new apps without a password. I will try to get it installed in time for next week.
+
+
 
 
 
