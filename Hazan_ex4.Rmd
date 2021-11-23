@@ -18,6 +18,7 @@ library(DESeq2)
 library(gProfileR)
 library(gage)
 library(knitr)
+library(topGO)
 
 counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv",
 package = "compGenomRData")
@@ -156,6 +157,23 @@ head(gseaResults.top10$less)
 ```
 
 ### Question 5
+```{r}
+# GSEA can be done with CLusterProfiler and Pathview
+```
+
+### Question 6
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
 
 
 
