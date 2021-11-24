@@ -158,7 +158,7 @@ head(gseaResults.top10$less)
 
 ### Question 5
 ```{r}
-# GSEA can be done with CLusterProfiler and Pathview
+# GSEA can be done with ClusterProfiler and Pathview
 ```
 
 ### Question 6
