@@ -107,7 +107,7 @@ pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
 above, use the silhouette for deciding number of clusters using hierarchical
 clustering. [Difficulty: Intermediate/Advanced]
 
-#### My answer
+##### My answer
 
 ```{r}
 library(cluster)
@@ -198,6 +198,7 @@ screeplot(pr)
 #PCA
 library(stats)
 library(ggplot2) 
+library(tidyverse)
 # install.packages("ggfortify") ggfortify is needed to let ggplot2 know about PCA data structure.
 library(ggfortify)
 
@@ -209,9 +210,39 @@ autoplot(pcaResults, data = annotation_col, colour = 'LeukemiaType')
 2. In this exercise we use the Rtsne() function on the leukemia expression
 data set. Try to increase and decrease perplexity t-sne, and describe the
 observed changes in 2D plots. [Difficulty: Beginner]
+##### My answer
 
 ```{r}
-# Your answer
+library(Rtsne)
+set.seed(3256)
+
+tsne_p10 <- Rtsne(t(scaledMat),perplexity = 10)
+plot(tsne_p10$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19)
+legend("bottomright",
+legend=unique(annotation_col$LeukemiaType),
+fill =palette("default"),
+border=NA,box.col=NA)
+
+tsne_p3 <- Rtsne(t(scaledMat),perplexity = 3)
+plot(tsne_p3$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19)
+legend("bottomright",
+legend=unique(annotation_col$LeukemiaType),
+fill =palette("default"),
+border=NA,box.col=NA)
+
+tsne_p18 <- Rtsne(t(scaledMat),perplexity = 18)
+plot(tsne_p18$Y,col=as.factor(annotation_col$LeukemiaType),
+     pch=19)
+legend("topright",
+legend=unique(annotation_col$LeukemiaType),
+fill =palette("default"),
+border=NA,box.col=NA)
+
+#Changing the perplexity changes how the clusters are spread out. 
+#At very low perplexity, very small sub-clusters form.
+#At very high perplexity, clusters do not form properly. 
 ```
 
 
