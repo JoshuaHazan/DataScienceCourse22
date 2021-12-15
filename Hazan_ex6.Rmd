@@ -107,7 +107,10 @@ pheatmap(mat,show_rownames=FALSE,show_colnames=FALSE,
 above, use the silhouette for deciding number of clusters using hierarchical
 clustering. [Difficulty: Intermediate/Advanced]
 
+#### My answer
+
 ```{r}
+library(cluster)
 set.seed(302)
 #Best k-value for clutering with untransformed data
 Ks=sapply(2:7,
