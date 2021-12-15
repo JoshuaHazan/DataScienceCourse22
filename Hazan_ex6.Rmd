@@ -112,14 +112,14 @@ clustering. [Difficulty: Intermediate/Advanced]
 ```{r}
 library(cluster)
 set.seed(302)
-#Best k-value for clutering with untransformed data
+#Best k-value for clustering with untransformed data
 Ks=sapply(2:7,
 function(i)
 summary(silhouette(pam(t(mat),k=i)))$avg.width)
 plot(2:7,Ks,xlab="k",ylab="av. silhouette",type="b",
 pch=19)
 
-#Best k-value for clutering with transformed data
+#Best k-value for clustering with transformed data
 Ks=sapply(2:7,
 function(i)
 summary(silhouette(pam(t(scaledMat),k=i)))$avg.width)
