@@ -84,8 +84,6 @@ TPM_depmap <- depmap::depmap_TPM()
 mutationCalls_depmap <- depmap::depmap_mutationCalls()
 metadata_depmap <- depmap::depmap_metadata()
 drug_sensitivity_depmap <- depmap::depmap_drug_sensitivity()
-
-## I have removed these from code as it will not upload to Github
 ```
 
 ### Mining, manipulation and visualization
