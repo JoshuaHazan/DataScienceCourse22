@@ -66,24 +66,24 @@ eh <- ExperimentHub()
 query(eh, "depmap")
 
 rnai <- eh[["EH3080"]]
-#crispr <- eh[["EH3081"]]
-#mutationCalls <- eh[["EH3085"]]
+crispr <- eh[["EH3081"]]
+mutationCalls <- eh[["EH3085"]]
 metadata <- eh[["EH3086"]]
 TPM <- eh[["EH3084"]]
 copyNumber <- eh[["EH3082"]]
-#drug_sensitivity_eh <- eh[["EH3087"]]
+drug_sensitivity_eh <- eh[["EH3087"]]
 ```
 
 ```{r, eval =FALSE}
 # An example for accessing Depmap data directly from *depmap* package. However, this way is much slower!!! 
-#rnai_depmap <- depmap::depmap_rnai()
-#crispr_depmap <- depmap::depmap_crispr()
-#copyNumber_depmap <- depmap::depmap_copyNumber()
-#RPPA_depmap <- depmap::depmap_RPPA()
-#TPM_depmap <- depmap::depmap_TPM()
-#mutationCalls_depmap <- depmap::depmap_mutationCalls()
-#metadata_depmap <- depmap::depmap_metadata()
-#drug_sensitivity_depmap <- depmap::depmap_drug_sensitivity()
+rnai_depmap <- depmap::depmap_rnai()
+crispr_depmap <- depmap::depmap_crispr()
+copyNumber_depmap <- depmap::depmap_copyNumber()
+RPPA_depmap <- depmap::depmap_RPPA()
+TPM_depmap <- depmap::depmap_TPM()
+mutationCalls_depmap <- depmap::depmap_mutationCalls()
+metadata_depmap <- depmap::depmap_metadata()
+drug_sensitivity_depmap <- depmap::depmap_drug_sensitivity()
 
 ## I have removed these from code as it will not upload to Github
 ```
@@ -114,50 +114,50 @@ Below, the rnai dataset is selected for cell lines with “SOFT_TISSUE” in the
 
 ```{r}
 ## list of dependency scores
-#rnai %>% dplyr::select(cell_line, gene_name, dependency) %>%
-          #dplyr::filter(stringr::str_detect(cell_line, "SOFT_TISSUE")) %>%
-          #dplyr::arrange(dependency) %>%
-          #head(10)
+rnai %>% dplyr::select(cell_line, gene_name, dependency) %>%
+          dplyr::filter(stringr::str_detect(cell_line, "SOFT_TISSUE")) %>%
+          dplyr::arrange(dependency) %>%
+          head(10)
 ```
 
 As the gene RPL14 appears several times in the top dependencies scores, it may make an interesting candidate target. Below, a plot of the rnai data is displayed as a histogram showing the distribution of dependency scores for gene RPL14
 
 ```{r}
 ## Basic histogram
-#rnai %>% dplyr::select(gene, gene_name, dependency) %>%
-          #dplyr::filter(gene_name == "RPL14") %>%
-          #ggplot(aes(x = dependency)) +
-          #geom_histogram() +
-          #ggtitle("Histogram of dependency scores for gene RPL14")
+rnai %>% dplyr::select(gene, gene_name, dependency) %>%
+          dplyr::filter(gene_name == "RPL14") %>%
+          ggplot(aes(x = dependency)) +
+          geom_histogram() +
+          ggtitle("Histogram of dependency scores for gene RPL14")
 ```
 
 A more complex plot of the rnai data, as shown below involves plotting the distribution of dependency scores for gene RPL14 for each major type of cancer, while highlighting the nature of mutations of this gene in such cancer cell lines (e.g. if such are COSMIC hotspots, damaging, etc.). Notice that the plot above reflects the same overall distribution in two dimensions.
 
 ```{r}
-#meta_rnai <- metadata %>%
-              #dplyr::select(depmap_id, lineage) %>%
-             # dplyr::full_join(rnai, by = "depmap_id") %>%
-             # dplyr::filter(gene_name == "RPL14") %>%
-             # dplyr::full_join((mutationCalls %>%
-                      #dplyr::select(depmap_id, entrez_id,
-                                #    is_cosmic_hotspot, var_annotation)),
-                                 #   by = c("depmap_id", "entrez_id"))
-#p1 <- meta_rnai %>%
-   #   ggplot(aes(x = dependency, y = lineage)) +
-  #    geom_point(alpha = 0.4, size = 0.5) + theme_classic() +
-   #   geom_point(data = subset(
-   #     meta_rnai, var_annotation == "damaging"), color = "red") +
-    #  geom_point(data = subset(
-    #    meta_rnai, var_annotation == "other non-conserving"), color = "blue") +
-    #  geom_point(data = subset(
-    #    meta_rnai, var_annotation == "other conserving"), color = "cyan") +
-    #  geom_point(data = subset(
-    #    meta_rnai, is_cosmic_hotspot == TRUE), color = "orange") +
-    #  geom_vline(xintercept=mean(meta_rnai$dependency, na.rm = TRUE),
-    #    linetype = "dotted", color = "red") +
-    #  ggtitle("Scatterplot of dependency scores for gene RPL14 by lineage")
+meta_rnai <- metadata %>%
+              dplyr::select(depmap_id, lineage) %>%
+              dplyr::full_join(rnai, by = "depmap_id") %>%
+              dplyr::filter(gene_name == "RPL14") %>%
+              dplyr::full_join((mutationCalls %>%
+                      dplyr::select(depmap_id, entrez_id,
+                                    is_cosmic_hotspot, var_annotation)),
+                                    by = c("depmap_id", "entrez_id"))
+p1 <- meta_rnai %>%
+      ggplot(aes(x = dependency, y = lineage)) +
+      geom_point(alpha = 0.4, size = 0.5) + theme_classic() +
+      geom_point(data = subset(
+       meta_rnai, var_annotation == "damaging"), color = "red") +
+      geom_point(data = subset(
+        meta_rnai, var_annotation == "other non-conserving"), color = "blue") +
+      geom_point(data = subset(
+        meta_rnai, var_annotation == "other conserving"), color = "cyan") +
+      geom_point(data = subset(
+        meta_rnai, is_cosmic_hotspot == TRUE), color = "orange") +
+      geom_vline(xintercept=mean(meta_rnai$dependency, na.rm = TRUE),
+        linetype = "dotted", color = "red") +
+      ggtitle("Scatterplot of dependency scores for gene RPL14 by lineage")
 
-#p1
+p1
 ```
 
 
@@ -165,14 +165,14 @@ Below is a boxplot displaying expression values for gene RPL14 by lineage:
 
 ```{r}
 #metadata %>%
-       # dplyr::select(depmap_id, lineage) %>%
-        #dplyr::full_join(TPM, by = "depmap_id") %>%
-      #  dplyr::filter(gene_name == "RPL14") %>%
-       # ggplot(aes(x = lineage, y = expression, fill = lineage)) +
-        #geom_boxplot(outlier.alpha = 0.1) + theme_classic() +
-    #    ggtitle("Boxplot of expression values for gene RPL14 by lineage") +
-     #   theme(axis.text.x = element_text(angle = 45, hjust=1)) +
-      #  theme(legend.position = "none")
+        dplyr::select(depmap_id, lineage) %>%
+        dplyr::full_join(TPM, by = "depmap_id") %>%
+        dplyr::filter(gene_name == "RPL14") %>%
+        ggplot(aes(x = lineage, y = expression, fill = lineage)) +
+        geom_boxplot(outlier.alpha = 0.1) + theme_classic() +
+        ggtitle("Boxplot of expression values for gene RPL14 by lineage") +
+        theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+        theme(legend.position = "none")
 ```
 
 ### Home work
