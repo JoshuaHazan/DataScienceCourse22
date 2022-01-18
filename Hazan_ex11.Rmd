@@ -221,29 +221,17 @@ plotExpression(deng_SCE, "Obox5", x = "pseudotime_dpt",
 # Homework
 1.  Try separating the cell types using other PCs. How does the separation look?
 ```{r}
-<<<<<<< HEAD
 deng_SCE$PC3 <- pca[,3]
 deng_SCE$PC4 <- pca[,4]
-=======
-deng_SCE$PC3 <- pca[, 3]
-deng_SCE$PC4 <- pca[, 4]
->>>>>>> ef59ca935cf018fe48486529a74474771d801a73
 
 ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC3, y = PC4, color = cell_type2)) + geom_quasirandom(groupOnX = FALSE) +
     scale_color_tableau() + theme_classic() +
     xlab("PC3") + ylab("PC4") + ggtitle("PC biplot with PC3 and PC4")
 
-<<<<<<< HEAD
 #There is almost no separation even at PC3 and PC4. I expect to see no separation when looking at higher PCs.
 
 deng_SCE$PC8 <- pca[,8]
 deng_SCE$PC9 <- pca[,9]
-=======
-#There is almost no separation even at PC3 and PC4. I expect the separation to get worse with higher PCs.
-
-deng_SCE$PC8 <- pca[, 8]
-deng_SCE$PC9 <- pca[, 9]
->>>>>>> ef59ca935cf018fe48486529a74474771d801a73
 
 ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC8, y = PC9, color = cell_type2)) + geom_quasirandom(groupOnX = FALSE) +
     scale_color_tableau() + theme_classic() +
