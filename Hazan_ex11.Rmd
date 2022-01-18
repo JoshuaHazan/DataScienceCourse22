@@ -240,13 +240,52 @@ ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC8, y = PC9, color = cell_type
 
 2. Try different sigma values when making diffusion map.
 ```{r}
-# dm <- DiffusionMap(t(deng), sigma = "local")  # use local option to set sigma
-# sigmas <- find_sigmas(t(deng), verbose = FALSE)  # find optimal sigma
-# dm <- DiffusionMap(t(deng), sigma = optimal_sigma(sigmas))  
+dm1 <- DiffusionMap(t(deng), sigma = "local")  # use local option to set sigma
+sigmas <- find_sigmas(t(deng), verbose = FALSE)  # find optimal sigma
+dm2 <- DiffusionMap(t(deng), sigma = optimal_sigma(sigmas))
+
+#For local sigma
+tmp1 <- data.frame(DC1 = eigenvectors(dm1)[, 1],
+                  DC2 = eigenvectors(dm1)[, 2],
+                  Timepoint = deng_SCE$cell_type2)
+ggplot(tmp1, aes(x = DC1, y = DC2, colour = Timepoint)) +
+    geom_point() + scale_color_tableau() + 
+    xlab("Diffusion component 1") + 
+    ylab("Diffusion component 2") +
+    theme_classic() + ggtitle("Diffusion plot with local sigma")
+
+deng_SCE$pseudotime_diffusionmap1 <- rank(eigenvectors(dm1)[,1])
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_diffusionmap1, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion component 1 (DC1)") + ylab("Timepoint") +
+    ggtitle("Cells ordered by DC1 with local sigma")
+
+#For optimal sigma
+tmp2 <- data.frame(DC1 = eigenvectors(dm2)[, 1],
+                  DC2 = eigenvectors(dm2)[, 2],
+                  Timepoint = deng_SCE$cell_type2)
+ggplot(tmp2, aes(x = DC1, y = DC2, colour = Timepoint)) +
+    geom_point() + scale_color_tableau() + 
+    xlab("Diffusion component 1") + 
+    ylab("Diffusion component 2") +
+    theme_classic() + ggtitle("Diffusion plot with optimal sigma")
+
+deng_SCE$pseudotime_diffusionmap2 <- rank(eigenvectors(dm2)[,1])
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_diffusionmap2, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion component 1 (DC1)") + ylab("Timepoint") +
+    ggtitle("Cells ordered by DC1 with optimal sigma")
+
 ```
 
 
-### Refernces
+### References
 
 1. This document builds off chapter 8.4 from the [Hemberg lab single cell RNA-seq course](http://hemberg-lab.github.io/scRNA.seq.course/biological-analysis.html#pseudotime-analysis), from the [Destiny vignette](https://bioconductor.org/packages/release/bioc/html/destiny.html) and from the [Slingshot vignette](https://www.bioconductor.org/packages/devel/bioc/vignettes/slingshot/inst/doc/slingshot.html).
 
