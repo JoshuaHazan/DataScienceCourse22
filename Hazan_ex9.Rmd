@@ -1,0 +1,226 @@
+---
+title: "Depmap - cancer dependency Map"
+date: "12/30/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+######## Adapted from Depmap vignette and "Exploiting Depmap cancer dependency data using the depmap R package" by Theo Killian and Laurent Gatto
+
+Depmap, A "cancer dependency map", represents the "landscape" of *in-vitro* characterization of cancer cell lines (~1700). It provides exploring data of cancer dependencies from large-scale RNAi and CRISPR-Cas9 screens. These RNAi and CRISPR-Cas9 experiments aimed to identify genes essential for cancer cell proliferation/survival. The gene's essentiality across the different cell lines is represented as a dependency score. A lower score that a cell line is highly dependent (essential) on that gene.
+
+
+*depmap* package in R imports Depmap data into:
+
+* “rnai” (RNAi genetic dependency)
+
+* “crispr” (CRISPR genetic dependency)
+
+* “copyNumber” (log fold copy number)
+
+* “TPM” (protein-coding expression)
+
+* “RPPA” (Reverse Phase Protein Array)
+
+* “mutationCalls” (mutation calls)
+
+* “drug_sensitivity” (chemical dependency)
+
+* “metadata” (metadata about all cancer cell lines)
+
+```{r, eval=FALSE}
+# Install depmap and ExperimentHub libraries
+# Please change eval parameter to eval=TRUE in your computer
+
+BiocManager::install("depmap")
+BiocManager::install("ExperimentHub")
+install.packages("dplyr")
+```
+
+```{r}
+# Load packages
+# Please install missing packages if needed
+
+library(tidyverse)
+library("dplyr")
+library("ggplot2")
+library("viridis")
+library("tibble")
+library("gridExtra")
+library("stringr")
+library("depmap")
+library("ExperimentHub")
+```
+
+Depmap data stored in the cloud via ExperimentHub. ExperimentHub is a Bioconductor's service which stores records from experiments, publications or training courses. 
+
+We can access Depmap data using *ExperimentHub* package or directly by using *depmap* package.
+
+```{r}
+# An example for accessing Depmap data using *ExperimentHub* package 
+
+eh <- ExperimentHub()
+query(eh, "depmap")
+
+rnai <- eh[["EH3080"]]
+crispr <- eh[["EH3081"]]
+mutationCalls <- eh[["EH3085"]]
+metadata <- eh[["EH3086"]]
+TPM <- eh[["EH3084"]]
+copyNumber <- eh[["EH3082"]]
+drug_sensitivity_eh <- eh[["EH3087"]]
+```
+
+```{r, eval =FALSE}
+# An example for accessing Depmap data directly from *depmap* package. However, this way is much slower!!! 
+rnai_depmap <- depmap::depmap_rnai()
+crispr_depmap <- depmap::depmap_crispr()
+copyNumber_depmap <- depmap::depmap_copyNumber()
+RPPA_depmap <- depmap::depmap_RPPA()
+TPM_depmap <- depmap::depmap_TPM()
+mutationCalls_depmap <- depmap::depmap_mutationCalls()
+metadata_depmap <- depmap::depmap_metadata()
+drug_sensitivity_depmap <- depmap::depmap_drug_sensitivity()
+```
+
+### Mining, manipulation and visualization
+
+For data manipulation we will use *dplyr* package:
+
+*`mutate()` adds new variables that are functions of existing variables
+
+*`select()` picks variables based on their names.
+
+*`filter()` picks cases based on their values.
+
+*`summarise()` reduces multiple values down to a single summary.
+
+*`arrange()` changes the ordering of the rows.
+
+The infix operator `%>%` is heavily used by *dplyr* package. We can use it to pass functions from the left-hand side of the operator to the first argument of the right-hand side of the operator. In the following example, the data frame iris gets passed to head():
+
+```{r}
+iris %>% head()
+
+# This is equivalent to head(iris)
+```
+
+Below, the rnai dataset is selected for cell lines with “SOFT_TISSUE” in the CCLE name, and displaying a list of the highest dependency scores.
+
+```{r}
+## list of dependency scores
+rnai %>% dplyr::select(cell_line, gene_name, dependency) %>%
+          dplyr::filter(stringr::str_detect(cell_line, "SOFT_TISSUE")) %>%
+          dplyr::arrange(dependency) %>%
+          head(10)
+```
+
+As the gene RPL14 appears several times in the top dependencies scores, it may make an interesting candidate target. Below, a plot of the rnai data is displayed as a histogram showing the distribution of dependency scores for gene RPL14
+
+```{r}
+## Basic histogram
+rnai %>% dplyr::select(gene, gene_name, dependency) %>%
+          dplyr::filter(gene_name == "RPL14") %>%
+          ggplot(aes(x = dependency)) +
+          geom_histogram() +
+          ggtitle("Histogram of dependency scores for gene RPL14")
+```
+
+A more complex plot of the rnai data, as shown below involves plotting the distribution of dependency scores for gene RPL14 for each major type of cancer, while highlighting the nature of mutations of this gene in such cancer cell lines (e.g. if such are COSMIC hotspots, damaging, etc.). Notice that the plot above reflects the same overall distribution in two dimensions.
+
+```{r}
+meta_rnai <- metadata %>%
+              dplyr::select(depmap_id, lineage) %>%
+              dplyr::full_join(rnai, by = "depmap_id") %>%
+              dplyr::filter(gene_name == "RPL14") %>%
+              dplyr::full_join((mutationCalls %>%
+                      dplyr::select(depmap_id, entrez_id,
+                                    is_cosmic_hotspot, var_annotation)),
+                                    by = c("depmap_id", "entrez_id"))
+p1 <- meta_rnai %>%
+      ggplot(aes(x = dependency, y = lineage)) +
+      geom_point(alpha = 0.4, size = 0.5) + theme_classic() +
+      geom_point(data = subset(
+       meta_rnai, var_annotation == "damaging"), color = "red") +
+      geom_point(data = subset(
+        meta_rnai, var_annotation == "other non-conserving"), color = "blue") +
+      geom_point(data = subset(
+        meta_rnai, var_annotation == "other conserving"), color = "cyan") +
+      geom_point(data = subset(
+        meta_rnai, is_cosmic_hotspot == TRUE), color = "orange") +
+      geom_vline(xintercept=mean(meta_rnai$dependency, na.rm = TRUE),
+        linetype = "dotted", color = "red") +
+      ggtitle("Scatterplot of dependency scores for gene RPL14 by lineage")
+
+p1
+```
+
+
+Below is a boxplot displaying expression values for gene RPL14 by lineage:
+
+```{r}
+#metadata %>%
+        dplyr::select(depmap_id, lineage) %>%
+        dplyr::full_join(TPM, by = "depmap_id") %>%
+        dplyr::filter(gene_name == "RPL14") %>%
+        ggplot(aes(x = lineage, y = expression, fill = lineage)) +
+        geom_boxplot(outlier.alpha = 0.1) + theme_classic() +
+        ggtitle("Boxplot of expression values for gene RPL14 by lineage") +
+        theme(axis.text.x = element_text(angle = 45, hjust=1)) +
+        theme(legend.position = "none")
+```
+
+### Home work
+1. Make a scatter plot of expression vs rnai gene dependency for Rhabdomyosarcoma Sarcoma.
+
+```{r}
+#Too much data to do in one function, so I did separately for expression and RNAi and then joined them together
+
+rhabdo_TPM <- metadata %>% 
+  dplyr::select(depmap_id, lineage) %>%
+  dplyr::filter(lineage == "rhabdomyosarcoma") %>%
+  dplyr::left_join((TPM %>%
+                      dplyr::select(depmap_id, expression, gene_name)),
+                   by = "depmap_id")
+
+rhabdo_rnai <- metadata %>% 
+  dplyr::select(depmap_id, lineage) %>%
+  dplyr::filter(lineage == "rhabdomyosarcoma") %>%
+  dplyr::left_join((rnai %>%
+                      dplyr::select(depmap_id, dependency, gene_name)),
+                   by = "depmap_id")
+
+#Combining the two tables for the plot
+rhabdo_TPM %>%
+  dplyr::full_join(rhabdo_rnai, by = c("depmap_id", "gene_name", "lineage")) %>%
+  drop_na() %>% #removing all rows that have NA in any column
+  ggplot(rhabdo, aes(x = expression, y = dependency)) + theme_classic() +
+  geom_point(color = "deepskyblue") + ggtitle("Expression vs RNAi gene dependency for rhabdomyosarcoma")
+```
+
+2. Make a boxplot displaying log genomic copy number for gene RPL14 by lineage
+
+```{r}
+metadata %>%
+  dplyr::select(depmap_id, lineage) %>%
+  dplyr::full_join((copyNumber %>%
+                      dplyr::select(depmap_id, gene_name, log_copy_number)),
+                   by = "depmap_id") %>%
+  dplyr::filter(gene_name == "RPL14") %>%
+  drop_na() %>%
+  ggplot(aes(y = log_copy_number, x = lineage)) + 
+  theme_classic() + geom_boxplot(aes(fill = lineage)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+        axis.title.x = element_blank())
+
+#Here's something funny for you to enjoy
+remotes::install_github('coolbutuseless/geomlime') 
+library(geomlime)
+ggplot(iris, aes(x = Sepal.Length, y = Petal.Width)) + theme_classic() +
+  geom_lime(aes(size = Sepal.Width)) + ggtitle("Limes")
+ggplot(mtcars, aes(x = mpg, y = wt)) + theme_classic() +
+  geom_pint(aes(size = cyl)) + ggtitle("Don't drink and drive")
+```
