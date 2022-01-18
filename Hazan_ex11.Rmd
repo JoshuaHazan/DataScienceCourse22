@@ -1,0 +1,294 @@
+---
+title: "Functional Pseudotime Analysis"
+output: html_document
+---
+
+# Pseudotime Cell Trajectories
+
+During development, in response to stimuli, and througout life, cells transition from one functional "state" to another. Cells in different states express different sets of genes, producing a dynamic repetoire of proteins and metabolites that carry out their work. As cells move between states, undergo a process of transcriptional re-configuration, with some genes being silenced and others newly activated. These transient states are often hard to characterize because purifying cells in between more stable endpoint states can be difficult or impossible. Single-cell RNA-Seq can enable you to see these states without the need for purification. However, to do so, we must determine where each cell is the range of possible states.
+
+### What is pseudotime?
+
+Pseudotime is a measure of how much progress an individual cell has made through a process such as cell differentiation. In many biological processes, cells do not progress in perfect synchrony. In single-cell expression studies of processes such as cell differentiation, captured cells might be widely distributed in terms of progress. That is, in a population of cells captured at exactly the same time, some cells might be far along, while others might not yet even have begun the process. This asynchrony creates major problems when you want to understand the sequence of regulatory changes that occur as cells transition from one state to the next. Tracking the expression across cells captured at the same time produces a very compressed sense of a gene's kinetics, and the apparent variability of that gene's expression will be very high.
+
+
+# Functional Pseudotime Analysis
+
+In this tutorial, we will analyze a single cell RNA-seq dataset that will teach us about several methods to infer the differentiation trajectory of a set of cells. These methods can order a set of individual cells along a path / trajectory / lineage, and assign a pseudotime value to each cell that represents where the cell is along that path. This can be a starting point for further analysis to determine gene expression programs driving interesting cell phenotypes. As you are running the code, think about how the algorithms work and what you like and do not like about the assumptions and utilities provided by the algorithm.
+
+## Packages intallation
+
+```{r, eval=FALSE}
+
+BiocManager::install("SingleCellExperiment")
+BiocManager::install("destiny")
+BiocManager::install("scater")
+install.packages("ggthemes")
+install.packages("ggbeeswarm")
+install.packages("cowplot")
+BiocManager::install("slingshot")
+install.packages("gam")
+
+```
+
+## Load settings and packages
+
+```{r setup_pseudotime}
+
+library(tidyverse)
+library(SingleCellExperiment)
+library(destiny)
+library(scater)
+library(ggplot2)
+library(ggthemes) 
+library(ggbeeswarm) 
+library(dplyr)
+library(cowplot)
+library(knitr)
+
+set.seed(10)  # set a seed for your random number generator to get reproducible results 
+opts_chunk$set(fig.align = "center")
+```
+
+## First look at the differentiation data from Deng et al.
+
+We will use a nice SMART-Seq2 single cell RNA-seq data from [Single-Cell RNA-Seq Reveals Dynamic, Random Monoallelic Gene Expression in Mammalian Cells](http://science.sciencemag.org/content/343/6167/193). Here is one relevant detail from their paper: "To investigate allele-specific gene expression at single-cell resolution, we isolated 269 individual cells dissociated from in vivo F1 embryos from oocyte to blastocyst stages of mouse preimplantation development (PD)"
+
+Let us take a first look at the Deng data. One simple approach to ordering cells in pseudotime is to use PCA. By carrying out PCA and labeling the cells by the stage at which they were collected, we can see how well the principal components separate cells along a differentiation trajectory.
+
+```{r pca_pseudotime}
+# Read in single cell data.
+path.deng <- c("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/deng-reads.rds")
+
+deng_SCE <- readRDS(path.deng)
+
+# What class is the deng_SCE object, and how is it organized?
+class(deng_SCE)
+structure(deng_SCE)
+
+# The SingleCellExperiment class is a lightweight Bioconductor container for storing and manipulating single-cell genomics data. Rows should represent features (genes, transcripts, genomic regions) and columns should represent cells. It provides methods for storing dimensionality reduction results and data for alternative feature sets (e.g., synthetic spike-in transcripts, antibody-derived tags). It is the central data structure for Bioconductor single-cell packages like scater and scran.
+
+
+# How many mouse cells are at each stage?
+table(deng_SCE$cell_type2)
+
+# Re-order the levels of the factor storing the cell developmental stage.
+deng_SCE$cell_type2 <- factor(deng_SCE$cell_type2,
+                              levels = c("zy", "early2cell", "mid2cell", "late2cell", 
+                                         "4cell", "8cell", "16cell", "earlyblast", "midblast",
+                                         "lateblast"))
+
+# Run PCA on Deng data. Use the runPCA function from the SingleCellExperiment package.
+deng_SCE <- runPCA(deng_SCE, ncomponents = 50) # ncomponents is a numeric scalar indicating the number of principal components to obtain.
+
+# Use the reducedDim function to access the PCA and store the results. 
+pca <- reducedDim(deng_SCE, "PCA")
+
+# Describe how the PCA is stored in a matrix. Why does it have this structure?
+head(pca)
+dim(pca)
+
+# Add PCA data to the deng_SCE object.
+deng_SCE$PC1 <- pca[, 1]
+deng_SCE$PC2 <- pca[, 2]
+
+# Plot PC biplot with cells colored by cell_type2. 
+# colData(deng_SCE) accesses the cell metadata DataFrame object for deng_SCE.
+# Look at Figure 1A of the paper as a comparison to your PC biplot.
+
+ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC1, y = PC2, color = cell_type2)) + geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("PC1") + ylab("PC2") + ggtitle("PC biplot")
+
+# PCA is a simple approach and can be good to compare to more complex algorithms 
+# designed to capture differentiation processes. As a simple measure of pseudotime 
+# we can use the coordinates of PC1.
+# Plot PC1 vs cell_type2. 
+deng_SCE$pseudotime_PC1 <- rank(deng_SCE$PC1)  # rank cells by their PC1 score
+ggplot(as.data.frame(colData(deng_SCE)), aes(x = pseudotime_PC1, y = cell_type2, 
+                                             colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("PC1") + ylab("Timepoint") +
+    ggtitle("Cells ordered by first principal component")
+
+```
+
+## Diffusion map pseudotime
+Let us see how a more advance trajectory inference method, diffusion maps and diffusion pseudotime, performs at placing cells along the expected differentiation trajectory.
+
+[Diffusion maps](https://en.wikipedia.org/wiki/Diffusion_map) were introduced by [Ronald Coifman and Stephane Lafon](http://www.sciencedirect.com/science/article/pii/S1063520306000546), and the underlying idea is to assume that the data are samples from a diffusion process. The method infers the low-dimensional manifold by estimating the eigenvalues and eigenvectors for the diffusion operator related to the data.
+
+[Angerer et al](https://academic.oup.com/bioinformatics/article/32/8/1241/1744143) have applied the diffusion maps concept to the analysis of single-cell RNA-seq data to create an R package called [destiny](http://bioconductor.org/packages/destiny).
+
+We will use two forms of pseudotime: the first diffusion component and the diffusion pseudotime. 
+
+```{r diffusion_pseudotime}
+#  Prepare a counts matrix with labeled rows and columns. 
+
+deng <- logcounts(deng_SCE)  # access log-transformed counts matrix
+cellLabels <- deng_SCE$cell_type2
+colnames(deng) <- cellLabels
+
+# Make a diffusion map.
+dm <- DiffusionMap(t(deng))
+
+# Plot diffusion component 1 vs diffusion component 2 (DC1 vs DC2). 
+tmp <- data.frame(DC1 = eigenvectors(dm)[, 1],
+                  DC2 = eigenvectors(dm)[, 2],
+                  Timepoint = deng_SCE$cell_type2)
+ggplot(tmp, aes(x = DC1, y = DC2, colour = Timepoint)) +
+    geom_point() + scale_color_tableau() + 
+    xlab("Diffusion component 1") + 
+    ylab("Diffusion component 2") +
+    theme_classic()
+
+# Next, let us use the first diffusion component (DC1) as a measure of pseudotime.
+# How does the separation by cell stage look?
+
+deng_SCE$pseudotime_diffusionmap <- rank(eigenvectors(dm)[,1])    # rank cells by their dpt
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_diffusionmap, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion component 1 (DC1)") + ylab("Timepoint") +
+    ggtitle("Cells ordered by DC1")
+
+# Diffusion pseudotime calculation. 
+# Set index or tip of pseudotime calculation to be a zygotic cell (cell 268). 
+rownames(pca) <- cellLabels
+dm <- DiffusionMap(pca)
+dpt <- DPT(dm, tips = 268) # DPT() creates pseudotime ordering and assigns cell to one of three branches
+
+# Plot diffusion pseudotime vs timepoint. 
+# Which separates the data better, DC1 or diffusion pseudotime?
+deng_SCE$pseudotime_dpt <- rank(dpt$dpt) 
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_dpt, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion map pseudotime (dpt)") +
+    ylab("Timepoint") +
+    ggtitle("Cells ordered by diffusion map pseudotime")
+
+```
+
+## Slingshot map pseudotime
+Let us see how another advance trajectory inference method, Slingshot, performs at placing cells along the expected differentiation trajectory.
+
+```{r slingshot}
+library(slingshot)
+
+# The goal of slingshot is to use clusters of cells to uncover global structure and convert this structure into smooth lineages represented by one-dimensional variables, called “pseudotime.”
+
+# The fundamental assumption of slingshot is that cells which are transcriptionally similar will be close to each other in some reduced-dimensional space. Since we use Euclidean distances in constructing lineages and measuring pseudotime, it is important to have a low-dimensional representation of the data.
+
+sce <- slingshot(deng_SCE, reducedDim = 'PCA')  # no clusters
+
+# Plot PC1 vs PC2 colored by Slingshot pseudotime.
+colors <- rainbow(50, alpha = 1)
+plot(reducedDims(sce)$PCA, col = colors[cut(sce$slingPseudotime_1,breaks=50)], pch=16, asp = 1)
+lines(SlingshotDataSet(sce), lwd=2)
+
+# Plot Slingshot pseudotime vs cell stage. 
+ggplot(as.data.frame(colData(deng_SCE)), aes(x = sce$slingPseudotime_1, y = cell_type2, 
+                              colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Slingshot pseudotime") + ylab("Timepoint") +
+    ggtitle("Cells ordered by Slingshot pseudotime")
+
+
+```
+
+
+## Plots of gene expression over time.
+Visualize how some of the temporally expressed genes change in time.
+```{r Rhoa-pc1}
+plotExpression(deng_SCE, "Obox5", x = "PC1", 
+               colour_by = "cell_type2", show_violin = FALSE,
+               show_smooth = TRUE)
+
+plotExpression(deng_SCE, "Obox5", x = "pseudotime_dpt", 
+               colour_by = "cell_type2", show_violin = FALSE,
+               show_smooth = TRUE)
+
+
+```
+
+# Homework
+1.  Try separating the cell types using other PCs. How does the separation look?
+```{r}
+deng_SCE$PC3 <- pca[,3]
+deng_SCE$PC4 <- pca[,4]
+
+ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC3, y = PC4, color = cell_type2)) + geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("PC3") + ylab("PC4") + ggtitle("PC biplot with PC3 and PC4")
+
+#There is almost no separation even at PC3 and PC4. I expect to see no separation when looking at higher PCs.
+
+deng_SCE$PC8 <- pca[,8]
+deng_SCE$PC9 <- pca[,9]
+
+ggplot(as.data.frame(colData(deng_SCE)), aes(x = PC8, y = PC9, color = cell_type2)) + geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("PC8") + ylab("PC9") + ggtitle("PC biplot with PC8 and PC9")
+```
+
+2. Try different sigma values when making diffusion map.
+```{r}
+dm1 <- DiffusionMap(t(deng), sigma = "local")  # use local option to set sigma
+sigmas <- find_sigmas(t(deng), verbose = FALSE)  # find optimal sigma
+dm2 <- DiffusionMap(t(deng), sigma = optimal_sigma(sigmas))
+
+#For local sigma
+tmp1 <- data.frame(DC1 = eigenvectors(dm1)[, 1],
+                  DC2 = eigenvectors(dm1)[, 2],
+                  Timepoint = deng_SCE$cell_type2)
+ggplot(tmp1, aes(x = DC1, y = DC2, colour = Timepoint)) +
+    geom_point() + scale_color_tableau() + 
+    xlab("Diffusion component 1") + 
+    ylab("Diffusion component 2") +
+    theme_classic() + ggtitle("Diffusion plot with local sigma")
+
+deng_SCE$pseudotime_diffusionmap1 <- rank(eigenvectors(dm1)[,1])
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_diffusionmap1, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion component 1 (DC1)") + ylab("Timepoint") +
+    ggtitle("Cells ordered by DC1 with local sigma")
+
+#For optimal sigma
+tmp2 <- data.frame(DC1 = eigenvectors(dm2)[, 1],
+                  DC2 = eigenvectors(dm2)[, 2],
+                  Timepoint = deng_SCE$cell_type2)
+ggplot(tmp2, aes(x = DC1, y = DC2, colour = Timepoint)) +
+    geom_point() + scale_color_tableau() + 
+    xlab("Diffusion component 1") + 
+    ylab("Diffusion component 2") +
+    theme_classic() + ggtitle("Diffusion plot with optimal sigma")
+
+deng_SCE$pseudotime_diffusionmap2 <- rank(eigenvectors(dm2)[,1])
+ggplot(as.data.frame(colData(deng_SCE)), 
+       aes(x = pseudotime_diffusionmap2, 
+           y = cell_type2, colour = cell_type2)) +
+    geom_quasirandom(groupOnX = FALSE) +
+    scale_color_tableau() + theme_classic() +
+    xlab("Diffusion component 1 (DC1)") + ylab("Timepoint") +
+    ggtitle("Cells ordered by DC1 with optimal sigma")
+
+```
+
+
+### References
+
+1. This document builds off chapter 8.4 from the [Hemberg lab single cell RNA-seq course](http://hemberg-lab.github.io/scRNA.seq.course/biological-analysis.html#pseudotime-analysis), from the [Destiny vignette](https://bioconductor.org/packages/release/bioc/html/destiny.html) and from the [Slingshot vignette](https://www.bioconductor.org/packages/devel/bioc/vignettes/slingshot/inst/doc/slingshot.html).
+
+2. https://broadinstitute.github.io/2019_scWorkshop/functional-pseudotime-analysis.html
+
+3. http://cole-trapnell-lab.github.io/monocle-release/docs/#constructing-single-cell-trajectories
