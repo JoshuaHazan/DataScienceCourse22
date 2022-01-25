@@ -1,0 +1,131 @@
+---
+title: "Hazan_ex12"
+author: "Josh"
+date: "1/20/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this tutorial, we will create a Shiny App that will present different plots of gene expression analysis.We will use the analysis below to create the plots shown in the Shiny App.
+
+## Gene expression analysis code
+
+##### Loading packages
+
+```{r}
+library(tidyverse)
+library(compGenomRData)
+library(pheatmap)
+library(stats)
+library(ggplot2)
+library(ggfortify)
+library(stats)
+library(corrplot)
+```
+
+##### Loading the data
+
+```{r}
+counts_file <- system.file("extdata/rna-seq/SRP029880.raw_counts.tsv",
+                           package = "compGenomRData")
+coldata_file <- system.file("extdata/rna-seq/SRP029880.colData.tsv",
+                            package = "compGenomRData")
+
+counts <- as.matrix(read.table(counts_file, header = T, sep = '\t'))
+```
+
+##### Normalizing the data
+
+```{r}
+cpm <- apply(subset(counts, select = c(-width)), 2,
+             function(x) x/sum(as.numeric(x)) * 10^6)
+
+geneLengths <- as.vector(subset(counts, select = c(width)))
+
+# compute rpkm
+rpkm <- apply(X = subset(counts, select = c(-width)),
+              MARGIN = 2,
+              FUN = function(x) {
+                10^9 * x / geneLengths / sum(as.numeric(x))
+              })
+
+# Computing TPM
+#find gene length normalized values
+rpk <- apply( subset(counts, select = c(-width)), 2,
+              function(x) x/(geneLengths/1000))
+
+#normalize by the sample size using rpk values
+tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
+```
+
+##### Selecting  genes
+
+```{r}
+#sort the results by variance in decreasing order
+#and select the top 100 genes
+
+V <- apply(tpm, 1, var)
+selectedGenes <- names(V[order(V, decreasing = T)][1:100])
+```
+
+##### Creating a heatmap
+
+```{r}
+colData <- read.table(coldata_file, header = T, sep = '\t',
+                      stringsAsFactors = TRUE)
+
+pheatmap(tpm[selectedGenes,], scale = 'row',
+         show_rownames = FALSE,
+         annotation_col = colData)
+```
+
+##### Creating a PCA
+
+```{r}
+#transpose the matrix
+M <- t(tpm[selectedGenes,])
+# transform the counts to log2 scale
+M <- log2(M + 1)
+#compute PCA
+pcaResults <- prcomp(M)
+
+autoplot(pcaResults, data = colData, colour = 'group') +theme_bw()
+```
+
+##### Creating a Correlation plot
+
+```{r}
+
+correlationMatrix <- cor(tpm)
+
+
+corrplot(correlationMatrix, order = 'hclust',
+         addrect = 2, addCoef.col = 'white',
+         number.cex = 0.7)
+```
+
+## Building a Shiny app
+
+Next, we will create a Shiny app that will present the above plots (Heatmap, PCA, and Correlation plot). The Shiny app should allow the user to choose which plot (Heatmap, PCA, and Correlation plot) he/she wants to produce and create that plot.
+
+Create a new app by the following menu options in RStudio. When prompted for a name of the app, call it test or something.
+
+*File -> New File -> Shiny web app*
+
+Use the following template:
+
+```{r, eval = F}
+library(shiny)
+ui <- fluidPage()
+
+server <- function(input, output) {}
+
+shinyApp(ui = ui, server = server)
+```
+
+You can use the auxiliary materials in the Moodle.
+
+# Submit the code for the Shiny app (app.R file) to Moodle. 
