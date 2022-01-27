@@ -79,7 +79,7 @@ colData <- read.table(coldata_file, header = T, sep = '\t',
 
 pheatmap(tpm[selectedGenes,], scale = 'row',
          show_rownames = FALSE,
-         annotation_col = colData)
+         annotation_col = colData) 
 ```
 
 ##### Creating a PCA
