@@ -1,0 +1,92 @@
+---
+title: "Hazan_Final_Project"
+author: "Joshua Hazan"
+date: "2/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(BiocGenerics)
+library(DESeq2)
+library(pheatmap)
+library(biomaRt)
+library(BASiCS)
+library(SingleCellExperiment)
+
+set.seed(5922)
+
+rawdata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/raw_data.txt", sep = "\t", header = TRUE)
+normalized_counts <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/normalized_data.txt", sep = "\t", header = TRUE)
+metadata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/metadata_file.txt", sep = "\t", header = TRUE)
+ERCC_conc <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/ERCC_concentrations.txt", sep = "\t", header = TRUE, fill = TRUE)
+```
+
+## Normalizing read counts.
+### I did this as the authors of the paper did, and in order to have more accurate results I loaded their normalized data instead of subsetting the data for my computer to be able to run it.
+
+```{r filtering and normalizing data, echo = FALSE}
+# Split data into biological genes and ERCC spike-ins. 
+# ERCC is a universal external control for RNA quality and the authors used it to normalize for the volume in each well, to partially account for batch effect.
+
+bio_genes <- rawdata[which(grepl("ENSMUS", rownames(rawdata))),]
+ERCC <- rawdata[which(grepl("ERCC", rownames(rawdata))),]
+
+#Calculating number of ERCC molecules per well
+ERCC_num <- matrix(data=NA, nrow=nrow(ERCC_conc), ncol=1)
+rownames(ERCC_num) <- rownames(ERCC_conc)
+ERCC_num[,1] <- (ERCC_conc[,1]*(10^(-18)))*(6.0221417*(10^23))
+ERCC_num_final <- ERCC_num/50000 # dilution factor
+ERCC_num_final <- ERCC_num_final * 0.009 # scaling factor
+
+# Scaling reads using RPM, as gene length is not a factor
+rpm <- (bio_genes/colSums(bio_genes))*1000000
+
+# Filtering genes to remove cells with less than 2 genes 
+cell_count <- apply(rpm, 1, function(n){length(which(n > 20))})
+bio_genes_1 <- bio_genes[names(which(cell_count > 2)),]
+ERCC_1 <- ERCC[rowSums(ERCC) > 0, ]
+
+# Complete data after filtering and normalizing
+Counts <- rbind(bio_genes_1, ERCC_1)
+Tech <- c(rep(FALSE, nrow(bio_genes_1)), rep(TRUE, nrow(ERCC_1)))
+SpikeInput <- ERCC_num_final[rownames(ERCC_1),1]
+SpikeInput_1 <- data.frame("Name" = names(SpikeInput),
+                           "Molecules" = SpikeInput,
+                           stringsAsFactors = FALSE)
+
+Data <- newBASiCS_Data(as.matrix(Counts), Tech, SpikeInput_1)
+
+# MCMC analysis - I did not do this because my computer took too long to run this function. Instead, I have loaded the normalized counts data from the paper
+#MCMC_Output <- BASiCS_MCMC(Data, N = 20000, Thin = 20, 
+#                           Burn = 10000, PrintProgress = TRUE, 
+#                           Regression = TRUE)
+#DenoisedCounts = BASiCS_DenoisedCounts(Data = Data, Chain = MCMC_Output)
+```
+
+## Unsupervised machine learning
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
