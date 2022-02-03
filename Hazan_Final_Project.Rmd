@@ -12,6 +12,7 @@ library(tidyverse)
 library(BiocGenerics)
 library(DESeq2)
 library(pheatmap)
+library(biomaRt)
 library(BASiCS)
 library(SingleCellExperiment)
 
@@ -58,7 +59,8 @@ SpikeInput_1 <- data.frame("Name" = names(SpikeInput),
 
 Data <- newBASiCS_Data(as.matrix(Counts), Tech, SpikeInput_1)
 
-# MCMC analysis - I did not do this because my computer took too long to run this function. Instead, I have loaded the normalized counts data directly from the paper's data
+
+# MCMC analysis - I did not do this because my computer took too long to run this function. Instead, I have loaded the normalized counts data from the paper
 #MCMC_Output <- BASiCS_MCMC(Data, N = 20000, Thin = 20, 
 #                           Burn = 10000, PrintProgress = TRUE, 
 #                           Regression = TRUE)
@@ -66,9 +68,15 @@ Data <- newBASiCS_Data(as.matrix(Counts), Tech, SpikeInput_1)
 ```
 
 ## Unsupervised machine learning
+<<<<<<< HEAD
 ```{r TSNE}
 
 ```
+=======
+
+
+
+>>>>>>> b03189db413516cd66a4e4e19a29ea643fa843df
 
 
 
