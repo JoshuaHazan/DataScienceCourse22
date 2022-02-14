@@ -32,6 +32,8 @@ GeneNames <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Geno
 GeneNames <- column_to_rownames(GeneNames, var = "Ensembl.Gene.ID")
 ```
 
+#### The Shiny app can be found at 
+
 ## Normalizing read counts.
 
 ### Normalizing the read counts is the first step for most analyses of sequencing data.

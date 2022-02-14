@@ -23,8 +23,8 @@ library(gage)
 set.seed(592)
 
 # Raw data
-normalized_counts <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/normalized_data.txt", sep = "\t", header = TRUE)
-metadata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/metadata.txt", sep = "\t", header = TRUE)
+normalized_counts <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/DataScienceCourse22/FinalProject_Hazan/normalized_data.txt", sep = "\t", header = TRUE)
+metadata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/DataScienceCourse22/FinalProject_Hazan/metadata.txt", sep = "\t", header = TRUE)
 
 # PCA data
 MACS <- metadata %>%
