@@ -6,27 +6,23 @@
 #
 #    http://shiny.rstudio.com/
 #
+# To deploy updates: 
+# rsconnect::deployApp('C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/DataScienceCourse22/FinalProject_Hazan')
 
 library(shiny)
 library(tidyverse)
 library(stats)
-library(BiocGenerics)
-library(DESeq2)
 library(pheatmap)
-library(BASiCS)
-library(SingleCellExperiment)
 library(Rtsne)
 library(corrplot)
-library(gprofiler2)
-library(gage)
 
 set.seed(592)
 
 # Raw data
-normalized_counts <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/DataScienceCourse22/FinalProject_Hazan/normalized_data.txt", sep = "\t", header = TRUE)
-metadata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/DataScienceCourse22/FinalProject_Hazan/metadata.txt", sep = "\t", header = TRUE)
+normalized_counts <- read.table("countshiny.txt", sep = "\t", header = TRUE)
+metadata <- read.table("metadata.txt", sep = "\t", header = TRUE)
 
-# PCA data
+# PCA
 MACS <- metadata %>%
   dplyr::filter(Celltype %in% "MACS-purified Naive") %>%
   dplyr::filter(Strain %in% "Mus musculus domesticus")
@@ -104,12 +100,13 @@ MACS_corr <- metadata %>%
   dplyr::filter(Celltype %in% "MACS-purified Naive") %>%
   dplyr::filter(Strain %in% "Mus musculus domesticus")
 Corr_counts <- normalized_counts %>%
-  dplyr::select(MACS$CellName)
+  dplyr::select(MACS_corr$CellName)
 correlationMatrix <- cor(Corr_counts)
-ann_col <- MACS %>%
+correlationMatrix <- sample_n(as.data.frame(correlationMatrix), 100)
+correlationMatrix <- correlationMatrix[,rownames(correlationMatrix)]
+ann_col <- MACS_corr %>%
   dplyr::select(CellName, Stimulus, Individuals) %>%
   column_to_rownames(var = "CellName")
-
 
 
 
@@ -151,7 +148,6 @@ server <- function(input, output, session) {
   output$plot <- renderUI({
     if(input$plot=="PCA"){
       if(input$age=="Young"){
-        
         output$plot1<-renderPlot({
           ggplot(data = pca.df.young, aes(pca.1, pca.2)) + 
             geom_point(size = 4, mapping = aes(fill = activity), shape = 22) +
@@ -178,7 +174,7 @@ server <- function(input, output, session) {
           ggplot(data = pca.df, aes(pca.1, pca.2)) + 
             geom_point(size = 4, mapping = aes(fill = activity, shape = age)) +
             scale_fill_manual(values = c("tomato2", "grey40")) +
-            scale_shape_manual(values = c(22, 24)) +
+            scale_shape_manual(values = c(24, 22)) +
             theme_minimal() + ylab("PCA 1") + xlab("PCA 2") +
             labs(title = "PCA for cells from young and old mice") +
             guides(fill=guide_legend(override.aes=list(shape=21)))
@@ -189,7 +185,6 @@ server <- function(input, output, session) {
     
     else if(input$plot=="tSNE"){
       if(input$cell=="FACS-purified effector memory"){
-        
         output$plot4<-renderPlot({
           ggplot(data = tsne.df.FACSeff, aes(tsne.1, tsne.2)) + 
             geom_point(size = 4, mapping = aes(fill = activity), shape = 22) +
@@ -242,8 +237,9 @@ server <- function(input, output, session) {
                  cutree_cols = input$corr_col,
                  cutree_rows = input$corr_row,
                  show_rownames = FALSE,
-                 show_colnames = FALSE,
-                 main = "Heatmap showing gene correlation between groups")
+                 show_colnames = FALSE, 
+                 border_color = NA,
+                 main = "Heatmap showing gene correlation between groups for a subset of 100 random samples")
       })
       plotOutput("plot8")
     }

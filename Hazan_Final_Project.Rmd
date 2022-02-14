@@ -23,21 +23,27 @@ library(gage)
 set.seed(592)
 
 ## All data was downloaded from the authors' github page at https://github.com/MarioniLab/ImmuneAging2017 (Accessed 06/02/2022) or from the ArrayExpress accession provided in the paper.
-rawdata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/raw_data.txt", sep = "\t", header = TRUE)
-normalized_counts <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/normalized_data.txt", sep = "\t", header = TRUE)
-metadata <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/metadata.txt", sep = "\t", header = TRUE)
+rawdata <- read.table("raw_data.txt", sep = "\t", header = TRUE)
+normalized_counts <- read.table("normalized_data.txt", sep = "\t", header = TRUE)
+metadata <- read.table("metadata.txt", sep = "\t", header = TRUE)
 coldata <- column_to_rownames(metadata, var = "CellName")
-ERCC_conc <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/ERCC_concentrations.txt", sep = "\t", header = TRUE, fill = TRUE)
-GeneNames <- read.table("C:/Users/besterlab/Dropbox (Technion Dropbox)/Josh/Genome Data Science Course/Final Project/Genenames.txt", sep = "\t", header = TRUE)
+ERCC_conc <- read.table("ERCC_concentrations.txt", sep = "\t", header = TRUE, fill = TRUE)
+GeneNames <- read.table("Genenames.txt", sep = "\t", header = TRUE)
 GeneNames <- column_to_rownames(GeneNames, var = "Ensembl.Gene.ID")
+
+# Subset of normalized data for shiny to make it run faster (2000 random genes from the top 5000 genes)
+norm_shiny <- normalized_counts %>%
+  top_n(5000) %>%
+  sample_n(2000)
+write.table(norm_shiny, file = "FinalProject_Hazan/countshiny.txt", sep = "\t")
 ```
 
-#### The Shiny app can be found at 
+#### The Shiny app can be found at https://joshuahazan.shinyapps.io/finalproject_hazan/
 
 ## Normalizing read counts.
 
 ### Normalizing the read counts is the first step for most analyses of sequencing data.
-### I did this as the authors of the paper did, and in order to have more accurate results I loaded their normalized data instead of subsetting the data for my computer to be able to run it.
+### I did this as the authors of the paper did, and in order to have more accurate results I loaded their normalized data instead of analyzing a subset of the data for my computer to be able to run it.
 ```{r filtering and normalizing data, echo = FALSE}
 # Split data into biological genes and ERCC spike-ins. 
 # ERCC is a universal external control for RNA quality and the authors used it to normalize for the volume in each well, to partially account for batch effect.
@@ -138,7 +144,7 @@ ggplot(data = pca.df.old, aes(pca.1, pca.2)) +
 ggplot(data = pca.df, aes(pca.1, pca.2)) + 
   geom_point(size = 4, mapping = aes(fill = activity, shape = age)) +
   scale_fill_manual(values = c("tomato2", "grey40")) +
-  scale_shape_manual(values = c(22, 24)) +
+  scale_shape_manual(values = c(24, 22)) +
   theme_minimal() + ylab("PCA 1") + xlab("PCA 2") +
   labs(title = "PCA for cells from young and old mice") +
   guides(fill=guide_legend(override.aes=list(shape=21)))
@@ -236,10 +242,10 @@ MACS_corr <- metadata %>%
   dplyr::filter(Celltype %in% "MACS-purified Naive") %>%
   dplyr::filter(Strain %in% "Mus musculus domesticus")
 Corr_counts <- normalized_counts %>%
-  dplyr::select(MACS$CellName)
+  dplyr::select(MACS_corr$CellName)
 
 correlationMatrix <- cor(Corr_counts)
-ann_col <- MACS %>%
+ann_col <- MACS_corr %>%
   dplyr::select(CellName, Stimulus, Individuals) %>%
   column_to_rownames(var = "CellName")
 
@@ -315,7 +321,7 @@ go <- gost(query = genesOfInterest,
            sources = 'GO', correction_method = "fdr",
            evcodes = TRUE)
 goResults <- go$result
-print(goResults)
+head(goResults)
 
 ## GSEA
 # Restricting to terms that have at most 500 genes overlapping with the query.
