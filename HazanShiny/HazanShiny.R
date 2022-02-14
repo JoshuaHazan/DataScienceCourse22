@@ -48,6 +48,15 @@ tpm <- apply(rpk, 2, function(x) x / sum(as.numeric(x)) * 10^6)
 V <- apply(tpm, 1, var)
 selectedGenes <- names(V[order(V, decreasing = T)][1:100])
 
+#transpose the matrix
+M <- t(tpm[selectedGenes,])
+# transform the counts to log2 scale
+M <- log2(M + 1)
+#compute PCA
+pcaResults <- prcomp(M)
+#Correlation matrix
+correlationMatrix <- cor(tpm)
+
 ## Starting the UI
 ui <- pageWithSidebar(
   headerPanel('Hazan Exercise 12 Shiny'),
@@ -72,7 +81,7 @@ server <- function(input, output, session) {
       output$plot1<-renderPlot({
         pheatmap(tpm[selectedGenes,], scale = 'row',
                  show_rownames = FALSE,
-                 annotation_col = colData$source_name)
+                 annotation_col = colData)
       })
       plotOutput("plot1")
     }
